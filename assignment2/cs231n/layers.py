@@ -559,7 +559,26 @@ def conv_forward_naive(x, w, b, conv_param):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    stride = conv_param['stride']
+    pad = conv_param['pad']
+    N, C1, H, W = x.shape
+    F, C2, HH, WW = w.shape
+    if C1 != C2:
+        print("The number of dimention of x and filter are diffrent, return. (In fowrwadpropogation)")
+        return [], []
+    H_out = 1 + (H + 2 * pad - HH) / stride
+    W_out = 1 + (W + 2 * pad - WW) / stride
+    H_out = int(H_out)
+    W_out = int(W_out)
+    out = np.zeros((N, F, H_out, W_out))
+    x_pad = np.pad(x, pad_width=((0, 0), (0, 0), (pad, pad), (pad, pad)), mode='constant')
+    for wloc in range(W_out):
+        for hloc in range(H_out):
+            for f in range(F):
+                for n in range(N):
+                    out[n, f, hloc, wloc] = np.sum(
+                        x_pad[n, :, (hloc * stride): (hloc * stride + HH), (wloc * stride): (wloc * stride + WW)] *
+                        w[f, :, :, :]) + b[f]
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -588,7 +607,32 @@ def conv_backward_naive(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    x, w, b, conv_param = cache
+    stride = conv_param['stride']
+    pad = conv_param['pad']
+    N, C1, H, W = x.shape
+    F, C2, HH, WW = w.shape
+    if C1 != C2:
+        print("The number of dimention of x and filter are diffrent, return. (In backpropogation)")
+        return [], []
+    H_out = 1 + (H + 2 * pad - HH) / stride
+    W_out = 1 + (W + 2 * pad - WW) / stride
+    H_out = int(H_out)
+    W_out = int(W_out)
+    x_pad = np.pad(x, pad_width=((0, 0), (0, 0), (pad, pad), (pad, pad)), mode='constant')
+    dx = np.zeros_like(x_pad)
+    db = np.zeros_like(b)
+    dw = np.zeros_like(w)
+    for wloc in range(W_out):
+        for hloc in range(H_out):
+            for f in range(F):
+                for n in range(N):
+                    db[f] += dout[n, f, hloc, wloc]
+                    dw[f, :, :, :] += x_pad[n, :, (hloc * stride): (hloc * stride + HH),
+                                           (wloc * stride): (wloc * stride + WW)] * dout[n, f, hloc, wloc]
+                    dx[n, :, (hloc * stride): (hloc * stride + HH), (wloc * stride): (wloc * stride + WW)] += \
+                        w[f, :, :, :] * dout[n, f, hloc, wloc]
+    dx = dx[:, :, pad: (pad + H), pad: (pad + W)]
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -622,7 +666,21 @@ def max_pool_forward_naive(x, pool_param):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    pool_height = pool_param['pool_height']
+    pool_width = pool_param['pool_width']
+    stride = pool_param['stride']
+    N, C, H, W = x.shape
+    H_out = 1 + (H - pool_height) / stride
+    W_out = 1 + (W - pool_width) / stride
+    H_out = int(H_out)
+    W_out = int(W_out)
+    out = np.zeros((N, C, H_out, W_out))
+    for wloc in range(W_out):
+        for hloc in range(H_out):
+            for c in range(C):
+                for n in range(N):
+                    out[n, c, hloc, wloc] = np.max(x[n, c, (hloc * stride): (hloc * stride + pool_height),
+                                                   (wloc * stride): (wloc * stride + pool_width)])
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -649,7 +707,25 @@ def max_pool_backward_naive(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    x, pool_param = cache
+    N, C, H, W = x.shape
+    pool_height = pool_param['pool_height']
+    pool_width = pool_param['pool_width']
+    stride = pool_param['stride']
+    H_out = 1 + (H - pool_height) / stride
+    W_out = 1 + (W - pool_width) / stride
+    H_out = int(H_out)
+    W_out = int(W_out)
+    dx = np.zeros_like(x)
+    for wloc in range(W_out):
+        for hloc in range(H_out):
+            for c in range(C):
+                for n in range(N):
+                    window = x[n, c, (hloc * stride): (hloc * stride + pool_height),
+                               (wloc * stride): (wloc * stride + pool_width)]
+                    dx[n, c, (hloc * stride): (hloc * stride + pool_height),
+                       (wloc * stride): (wloc * stride + pool_width)] += (window == np.max(window)) \
+                                                                         * dout[n, c, hloc, wloc]
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -691,7 +767,10 @@ def spatial_batchnorm_forward(x, gamma, beta, bn_param):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    N, C, H, W = x.shape
+    x = x.transpose(0, 2, 3, 1).reshape(N * H * W, C)
+    out, cache = batchnorm_forward(x, gamma, beta, bn_param)
+    out = out.reshape(N, H, W, C).transpose(0, 3, 1, 2)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
