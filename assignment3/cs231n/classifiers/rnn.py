@@ -142,7 +142,32 @@ class CaptioningRNN(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        # forward passes
+        h0, cache_feature = affine_forward(features, W_proj, b_proj)
+        x, cache_word = word_embedding_forward(captions_in, W_embed)
+        if self.cell_type == 'rnn':
+            h, cache = rnn_forward(x, h0, Wx, Wh, b)
+        elif self.cell_type == 'lstm':
+            h, cache = lstm_forward(x, h0, Wx, Wh, b)
+        out, cache_score = temporal_affine_forward(h, W_vocab, b_vocab)
+        loss, dscore = temporal_softmax_loss(out, captions_out, mask)
+
+        # backward passes
+        dLossdh, dW_vocab, db_vocab = temporal_affine_backward(dscore, cache_score)
+        grads['W_vocab'] = dW_vocab
+        grads['b_vocab'] = db_vocab
+        if self.cell_type == 'rnn':
+            dx, dh0, dWx, dWh, db = rnn_backward(dLossdh, cache)
+        elif self.cell_type == 'lstm':
+            dx, dh0, dWx, dWh, db = lstm_backward(dLossdh, cache)
+        grads['Wx'] = dWx
+        grads['Wh'] = dWh
+        grads['b'] = db
+        dW_embed = word_embedding_backward(dx, cache_word)
+        grads['W_embed'] = dW_embed
+        _, dW_proj, db_proj = affine_backward(dh0, cache_feature)
+        grads['W_proj'] = dW_proj
+        grads['b_proj'] = db_proj
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -211,7 +236,24 @@ class CaptioningRNN(object):
         ###########################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        captions[:, 0] = self._start
+        h0, _ = affine_forward(features, W_proj, b_proj)
+        x0, _ = word_embedding_forward(captions[:, 0], W_embed)
+        input_word = x0
+        prev_h = h0
+        if self.cell_type == 'lstm':
+            prev_c = np.zeros_like(h0)
+            for i in range(1, max_length):
+                prev_h, prev_c, _ = lstm_step_forward(input_word, prev_h, prev_c, Wx, Wh, b)
+                score, _ = affine_forward(prev_h, W_vocab, b_vocab)
+                captions[:, i] = np.argmax(score, axis=1)
+                input_word, _ = word_embedding_forward(captions[:, i], W_embed)
+        if self.cell_type == 'rnn':
+            for i in range(1, max_length):
+                prev_h, _ = rnn_step_forward(input_word, prev_h, Wx, Wh, b)
+                score, _ = affine_forward(prev_h, W_vocab, b_vocab)
+                captions[:, i] = np.argmax(score, axis=1)
+                input_word, _ = word_embedding_forward(captions[:, i], W_embed)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
