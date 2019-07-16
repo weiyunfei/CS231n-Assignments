@@ -7,3 +7,4 @@ The assignments of CS231n in 2019 Spring
 2019.5.17 The assignment of features(HOG) was done.  
 2019.5.23 Accomplished fc_net, optim, bn, dropout.  
 2019.5.28 Accomplished cnn, spatial bn, spatial gn in Assignment2.  
+2019.7.16 Push Assianment3.  
